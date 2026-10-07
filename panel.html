@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>M+ Boost Monitor</title>
+<style>
+:root{
+  --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--border:#2e3350;
+  --accent:#5865f2;--accent-h:#4752c4;--green:#23a55a;--red:#f23f42;
+  --yellow:#f0b232;--blue:#7eb3f7;--purple:#c27aff;
+  --text:#e3e5e8;--muted:#80848e;
+  --radius:10px;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;}
+
+/* Login */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:40px;width:340px;display:flex;flex-direction:column;gap:18px;}
+.login-card h1{font-size:20px;text-align:center;}
+.login-logo{font-size:44px;text-align:center;}
+
+/* Layout */
+#app{display:none;flex-direction:column;min-height:100vh;}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px;
+  display:flex;align-items:center;justify-content:space-between;}
+header h1{font-size:17px;display:flex;align-items:center;gap:10px;}
+.sdot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+.sdot.inactive{background:var(--muted);box-shadow:none;}
+.sdot.active{background:var(--green);box-shadow:0 0 6px var(--green);}
+.sdot.paused{background:var(--accent);box-shadow:0 0 6px var(--accent);}
+
+.main{display:grid;grid-template-columns:220px 1fr;flex:1;overflow:hidden;}
+nav{background:var(--surface);border-right:1px solid var(--border);
+  padding:12px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
+nav .nsec{font-size:10px;color:var(--muted);padding:12px 14px 4px;
+  text-transform:uppercase;letter-spacing:.8px;}
+nav button{background:none;border:none;color:var(--muted);cursor:pointer;
+  padding:9px 14px;border-radius:7px;text-align:left;font-size:13px;
+  display:flex;align-items:center;gap:9px;transition:all .12s;width:100%;}
+nav button:hover{background:var(--surface2);color:var(--text);}
+nav button.active{background:var(--accent);color:#fff;}
+nav button.has-badge{justify-content:space-between;}
+.nav-badge{background:var(--green);color:#fff;font-size:10px;padding:2px 6px;
+  border-radius:10px;font-weight:700;min-width:18px;text-align:center;}
+.nav-badge.alert{background:var(--yellow);color:#000;}
+
+.content{padding:22px;overflow-y:auto;max-height:calc(100vh - 48px);}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px;margin-bottom:14px;}
+.card h2{font-size:14px;margin-bottom:14px;}
+
+/* Banners */
+.banner{display:flex;align-items:center;gap:14px;padding:16px 20px;
+  border-radius:var(--radius);margin-bottom:16px;}
+.banner-paused{background:#1a1a2e;border:2px solid var(--accent);}
+.banner-accepted{background:#0a2010;border:2px solid var(--green);}
+.banner-sent{background:#1a1500;border:1px solid var(--yellow);}
+
+/* Stats */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:16px;}
+.stat{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;}
+.stat .v{font-size:26px;font-weight:700;}
+.stat .l{font-size:11px;color:var(--muted);margin-top:3px;}
+.stat.g .v{color:var(--green)}.stat.r .v{color:var(--red)}
+.stat.y .v{color:var(--yellow)}.stat.b .v{color:var(--blue)}
+.stat.a .v{color:var(--accent)}.stat.p .v{color:var(--purple)}
+
+/* Accept boost card */
+#accept-boost-card{display:none;background:#061a0f;border:2px solid var(--green);
+  border-radius:var(--radius);padding:20px;margin-bottom:16px;}
+#accept-boost-card h3{color:var(--green);font-size:15px;margin-bottom:12px;}
+.accept-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;font-size:12px;}
+.accept-row{display:flex;flex-direction:column;padding:4px 0;border-bottom:1px solid #0d3020;}
+.accept-row:last-child{border-bottom:none;}
+.accept-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.accept-val{color:var(--text);word-break:break-all;}
+
+/* Sent boosts table */
+#sent-boosts-wrap table{width:100%;}
+
+/* Forms */
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+label{font-size:12px;color:var(--muted);}
+input[type=text],input[type=password],input[type=number],textarea,select{
+  background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  border-radius:6px;padding:8px 11px;font-size:13px;font-family:var(--font);
+  width:100%;outline:none;transition:border-color .12s;}
+input:focus,textarea:focus,select:focus{border-color:var(--accent);}
+textarea{resize:vertical;min-height:72px;}
+.hint{font-size:11px;color:var(--muted);}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:7px;
+  font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .12s;font-family:var(--font);}
+.btn-p{background:var(--accent);color:#fff;}.btn-p:hover{background:var(--accent-h);}
+.btn-d{background:var(--red);color:#fff;}.btn-d:hover{background:#c0373a;}
+.btn-s{background:var(--green);color:#fff;}.btn-s:hover{background:#1a8447;}
+.btn-w{background:var(--yellow);color:#000;}.btn-w:hover{background:#c98e20;}
+.btn-g{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.btn-g:hover{background:var(--border);}
+.btn-continue{background:var(--green);color:#fff;font-size:15px;padding:12px 28px;font-weight:700;}
+.btn-continue:hover{background:#1a8447;}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+
+/* Toggle */
+.tog-row{display:flex;align-items:center;justify-content:space-between;
+  padding:9px 0;border-bottom:1px solid var(--border);}
+.tog-row:last-child{border-bottom:none;}
+.tog-lbl{font-size:13px;}.tog-desc{font-size:11px;color:var(--muted);margin-top:2px;}
+.toggle{position:relative;width:40px;height:22px;cursor:pointer;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.slider{position:absolute;inset:0;background:var(--surface2);border:1px solid var(--border);
+  border-radius:22px;transition:.18s;}
+.slider:before{content:"";position:absolute;width:16px;height:16px;left:2px;top:2px;
+  background:var(--muted);border-radius:50%;transition:.18s;}
+input:checked+.slider{background:var(--accent);border-color:var(--accent);}
+input:checked+.slider:before{transform:translateX(18px);background:#fff;}
+
+/* Table */
+.tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.tbl th{text-align:left;padding:7px 10px;color:var(--muted);
+  border-bottom:1px solid var(--border);font-weight:500;white-space:nowrap;}
+.tbl td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:var(--surface2);}
+.tbl code{font-size:10px;background:var(--surface2);padding:1px 5px;border-radius:3px;}
+
+/* Badges */
+.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;}
+.bg{background:#0d2016;color:var(--green);}
+.br{background:#3a0d0d;color:var(--red);}
+.by{background:#2a1c00;color:var(--yellow);}
+.bb{background:#0d1a3a;color:var(--blue);}
+.bm{background:var(--surface2);color:var(--muted);}
+.ba{background:#1a1a3a;color:var(--accent);}
+.bp{background:#1a0a2e;color:var(--purple);}
+
+/* Logs */
+#log-box{background:#080a0e;border:1px solid var(--border);border-radius:8px;
+  padding:10px;height:400px;overflow-y:auto;font-family:monospace;font-size:12px;}
+.le{padding:2px 0;display:flex;gap:8px;}
+.le-t{color:var(--muted);white-space:nowrap;flex-shrink:0;}
+.le-b{font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600;
+  white-space:nowrap;flex-shrink:0;align-self:flex-start;}
+.le-b.success{background:#0d2016;color:var(--green);}
+.le-b.error{background:#3a0d0d;color:var(--red);}
+.le-b.warn{background:#2a1c00;color:var(--yellow);}
+.le-b.info{background:#0d1a3a;color:var(--blue);}
+.le-m{word-break:break-all;color:var(--text);}
+
+.filter-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:flex-end;}
+.filter-row .fg{margin-bottom:0;min-width:130px;}
+.section{display:none;}.section.active{display:block;}
+.flex-b{display:flex;align-items:center;justify-content:space-between;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.empty{text-align:center;color:var(--muted);padding:36px;font-size:13px;}
+
+/* Toast */
+#toasts{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:7px;z-index:9999;}
+.toast{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:10px 16px;font-size:13px;max-width:300px;
+  animation:toastIn .15s ease;display:flex;align-items:center;gap:8px;}
+.toast.success{border-color:var(--green);}.toast.error{border-color:var(--red);}
+.toast.warn{border-color:var(--yellow);}
+@keyframes toastIn{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+
+/* Modal */
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);
+  z-index:1000;align-items:center;justify-content:center;}
+.modal-box{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:24px;max-width:600px;width:92%;max-height:82vh;overflow-y:auto;}
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">⚔️</div>
+    <h1>M+ Boost Monitor</h1>
+    <div class="fg"><label>Password</label>
+      <input type="password" id="pw" placeholder="Panel password" autocomplete="current-password"/>
+    </div>
+    <button class="btn btn-p" id="login-btn" style="width:100%">Sign In</button>
+    <p id="login-err" style="color:var(--red);font-size:12px;text-align:center;display:none">Incorrect password</p>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <header>
+    <h1><span id="hdr-dot" class="sdot inactive"></span> M+ Boost Monitor</h1>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span id="hdr-state" style="font-size:12px;font-weight:600;color:var(--muted)">Loading…</span>
+      <span id="ws-ind" style="font-size:10px;color:var(--muted)">⬤ WS</span>
+      <button class="btn btn-g btn-sm" id="logout-btn">Sign Out</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <nav>
+      <div class="nsec">Monitoring</div>
+      <button class="active" data-s="dashboard">📊 Dashboard</button>
+      <button data-s="accept-boost" id="nav-accept-boost">✅ Accept Boost</button>
+      <button data-s="servers">🌐 Servers</button>
+      <button data-s="channels">📡 Channels</button>
+
+      <div class="nsec">Configuration</div>
+      <button data-s="filters">⚙️ Filters &amp; Rules</button>
+      <button data-s="messages">✉️ Message Template</button>
+      <button data-s="notification">🔔 Notification Channel</button>
+
+      <div class="nsec">History</div>
+      <button data-s="boosts">⚔️ All Boosts</button>
+      <button data-s="accepts">🏆 Acceptances</button>
+      <button data-s="mplus-logs">📋 Logs</button>
+
+      <div class="nsec">System</div>
+      <button data-s="telegram">📨 Telegram</button>
+      <button data-s="settings">🔧 Settings</button>
+      <button data-s="original-bot">🤖 Original Bot</button>
+    </nav>
+
+    <div class="content">
+
+      <!-- ═══ DASHBOARD ═══ -->
+      <div id="s-dashboard" class="section active">
+
+        <!-- PAUSED_FOR_CONFIRMATION banner -->
+        <div id="paused-banner" style="display:none" class="banner banner-paused">
+          <div style="font-size:32px">⏸</div>
+          <div style="flex:1">
+            <div style="font-size:16px;font-weight:700;color:var(--accent);margin-bottom:6px">
+              ✅ Boost Accepted — System Paused
+            </div>
+            <div style="font-size:13px;color:var(--text);margin-bottom:4px">
+              A boost has been accepted. Press <b>CONTINUE</b> to start monitoring for the next boost.
+            </div>
+            <div style="font-size:11px;color:var(--muted)">
+              No new boost messages will be sent until you press Continue.
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+            <button class="btn btn-continue" id="continue-btn">▶ CONTINUE</button>
+            <button class="btn btn-w btn-sm" id="force-release-btn">🔓 Force Release</button>
+          </div>
+        </div>
+
+        <!-- State row -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span id="state-badge" class="badge bm" style="font-size:13px;padding:5px 14px">INACTIVE</span>
+            <span id="state-desc" style="font-size:13px;color:var(--muted)">Monitoring is disabled</span>
+          </div>
+          <div class="btn-row" style="margin:0">
+            <button class="btn btn-s btn-sm" id="enable-btn">▶ Enable</button>
+            <button class="btn btn-d btn-sm" id="disable-btn">⏹ Disable</button>
+            <button class="btn btn-g btn-sm" id="trigger-btn" title="Manually run one monitor tick (poll reactions now)">⚡ Run Now</button>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stat-grid">
+          <div class="stat a"><div class="v" id="st-guilds">—</div><div class="l">Servers</div></div>
+          <div class="stat b"><div class="v" id="st-channels">—</div><div class="l">Channels</div></div>
+          <div class="stat y"><div class="v" id="st-sent">—</div><div class="l">Messages Sent</div></div>
+          <div class="stat g"><div class="v" id="st-accepted">—</div><div class="l">Accepted</div></div>
+          <div class="stat r"><div class="v" id="st-errors">—</div><div class="l">Errors</div></div>
+        </div>
+
+        <!-- Active sent boosts -->
+        <div class="card">
+          <div class="flex-b" style="margin-bottom:10px">
+            <h2 style="margin:0">📨 Messages Sent (Waiting for Acceptance)</h2>
+            <button class="btn btn-g btn-sm" onclick="loadDashboard()">🔄</button>
+          </div>
+          <p style="font-size:11px;color:var(--muted);margin-bottom:10px">
+            These channels received a boost message. Monitoring continues on ALL of them simultaneously.
+            Acceptance of any one will trigger PAUSED_FOR_CONFIRMATION.
+          </p>
+          <div id="sent-boosts-wrap"><div class="empty">No active boost messages</div></div>
+        </div>
+
+        <!-- Recent boosts -->
+        <div class="card">
+          <div class="flex-b" style="margin-bottom:10px">
+            <h2 style="margin:0">Recent Boosts</h2>
+            <button class="btn btn-g btn-sm" onclick="loadBoosts()">🔄</button>
+          </div>
+          <div id="recent-boosts-wrap"><div class="empty">No boosts yet</div></div>
+        </div>
+      </div>
+
+      <!-- ═══ ACCEPT BOOST ═══ -->
+      <div id="s-accept-boost" class="section">
+        <h2 style="font-size:16px;margin-bottom:16px">✅ Accepted Boost</h2>
+
+        <div id="accept-boost-card">
+          <h3>🎯 Boost Accepted</h3>
+          <div class="accept-grid" id="accept-boost-detail"></div>
+          <div style="margin-top:16px;padding-top:14px;border-top:1px solid #0d3020;display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-continue" id="continue-btn2">▶ CONTINUE — Monitor Next Boost</button>
+            <button class="btn btn-g btn-sm" onclick="retryNotification()">🔄 Retry Notification</button>
+          </div>
+        </div>
+
+        <div id="no-accept-msg" style="display:none">
+          <div class="empty" style="padding:60px">
+            <div style="font-size:48px;margin-bottom:16px">🎯</div>
+            <div style="font-size:14px;color:var(--muted)">No accepted boost yet.<br>
+              When a reaction or mention is detected on a sent message, the boost will appear here.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ SERVERS ═══ -->
+      <div id="s-servers" class="section">
+        <div class="flex-b" style="margin-bottom:14px">
+          <h2 style="font-size:16px">Servers</h2>
+          <button class="btn btn-g btn-sm" onclick="loadGuilds()">🔄</button>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <h2>Add Discord ID</h2>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:10px">
+            Guild ID, Category ID, or Channel ID
+          </p>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="resolve-id" placeholder="Discord Snowflake ID" style="flex:1"/>
+            <button class="btn btn-p" id="resolve-btn">+ Add</button>
+          </div>
+          <div id="resolve-result" style="margin-top:8px;font-size:12px;"></div>
+        </div>
+        <div id="guilds-wrap"><div class="empty">No servers yet</div></div>
+      </div>
+
+      <!-- ═══ CHANNELS ═══ -->
+      <div id="s-channels" class="section">
+        <div class="flex-b" style="margin-bottom:12px">
+          <h2 style="font-size:16px">Channels</h2>
+          <button class="btn btn-g btn-sm" onclick="loadChannels()">🔄</button>
+        </div>
+        <div class="filter-row">
+          <div class="fg"><label>Server</label>
+            <select id="ch-filter-guild" style="width:160px"><option value="">All</option></select></div>
+          <div class="fg"><label>Status</label>
+            <select id="ch-filter-active" style="width:110px">
+              <option value="">All</option><option value="true">Active</option><option value="false">Deleted</option>
+            </select></div>
+          <div class="fg"><label>Parse</label>
+            <select id="ch-filter-parsed" style="width:120px">
+              <option value="">All</option><option value="PARSED">Parsed</option><option value="UNPARSED">Unparsed</option>
+            </select></div>
+          <button class="btn btn-g btn-sm" onclick="loadChannels()">Filter</button>
+        </div>
+        <div id="channels-wrap"><div class="empty">No channels yet</div></div>
+      </div>
+
+      <!-- ═══ FILTERS ═══ -->
+      <div id="s-filters" class="section">
+        <div class="card">
+          <h2>Level Filter</h2>
+          <div class="two-col">
+            <div class="fg"><label>Min Level</label><input type="number" id="f-min" min="1" max="99"/></div>
+            <div class="fg"><label>Max Level</label><input type="number" id="f-max" min="1" max="99"/></div>
+          </div>
+          <button class="btn btn-p" id="save-filter-btn">💾 Save</button>
+        </div>
+
+        <div class="card">
+          <h2>Acceptance Rules</h2>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
+            <b>Message Sent ≠ Boost Accepted.</b><br>
+            Acceptance happens ONLY when a valid reaction or mention is detected on the exact sent message.
+          </p>
+          <div class="tog-row">
+            <div><div class="tog-lbl">Reaction Acceptance</div>
+              <div class="tog-desc">Any reaction on the sent message = accepted</div></div>
+            <label class="toggle"><input type="checkbox" id="f-acc-react"/><span class="slider"></span></label>
+          </div>
+          <div class="tog-row">
+            <div><div class="tog-lbl">Accept Any Emoji</div>
+              <div class="tog-desc">ON = any emoji accepted | OFF = only specific emojis below</div></div>
+            <label class="toggle"><input type="checkbox" id="f-any-react"/><span class="slider"></span></label>
+          </div>
+          <div class="fg" style="margin-top:10px" id="specific-reactions-row">
+            <label>Specific Accepted Emojis (when "Any Emoji" is OFF)</label>
+            <input type="text" id="f-reactions" placeholder="✅,👍"/>
+          </div>
+          <div class="tog-row">
+            <div><div class="tog-lbl">Mention Acceptance</div>
+              <div class="tog-desc">Mention of target account in boost channel = accepted</div></div>
+            <label class="toggle"><input type="checkbox" id="f-acc-mention"/><span class="slider"></span></label>
+          </div>
+          <div class="fg" style="margin-top:10px">
+            <label>Target Account User ID (for mention acceptance)</label>
+            <input type="text" id="f-mention-target" placeholder="Discord User ID"/>
+          </div>
+          <button class="btn btn-p" id="save-accept-btn" style="margin-top:6px">💾 Save Rules</button>
+        </div>
+      </div>
+
+      <!-- ═══ MESSAGES ═══ -->
+      <div id="s-messages" class="section">
+        <div class="card">
+          <h2>Message Template</h2>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:10px">
+            This message is sent into the SAME channel where the boost request was detected.<br>
+            Variables: <code>{server}</code> <code>{guild}</code> <code>{category}</code>
+            <code>{channel}</code> <code>{channel_id}</code> <code>{customer}</code>
+            <code>{level}</code> <code>{count}</code> <code>{type}</code> <code>{timestamp}</code>
+          </p>
+          <div class="fg"><label>Template</label>
+            <textarea id="msg-template" rows="3" placeholder="Interested in +{level} for {customer}"></textarea>
+          </div>
+          <button class="btn btn-p" id="save-msg-btn">💾 Save</button>
+        </div>
+        <div class="card">
+          <h2>Preview</h2>
+          <div id="msg-preview" style="background:var(--surface2);border:1px solid var(--border);
+            border-radius:6px;padding:12px;font-size:13px;min-height:40px;white-space:pre-wrap;word-break:break-word;"></div>
+          <button class="btn btn-g btn-sm" style="margin-top:8px" onclick="previewTemplate()">🔄 Preview</button>
+        </div>
+      </div>
+
+      <!-- ═══ NOTIFICATION CHANNEL ═══ -->
+      <div id="s-notification" class="section">
+        <div class="card">
+          <h2>Discord Notification Channel</h2>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:14px">
+            When a boost is accepted, a detailed notification is sent to this Discord channel.<br>
+            <b>This channel is ONLY for notifications</b> — boost request messages are still sent to the matching boost channel.
+          </p>
+          <div class="fg">
+            <label>Notification Channel ID</label>
+            <input type="text" id="notif-channel-id" placeholder="Discord Channel ID (e.g. 1234567890123456789)"/>
+            <span class="hint">The bot must have permission to send messages in this channel.</span>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-p" id="save-notif-btn">💾 Save</button>
+            <button class="btn btn-g" id="test-notif-btn">🔔 Test Notification</button>
+          </div>
+          <div id="notif-status" style="margin-top:10px;font-size:12px;"></div>
+        </div>
+
+        <div class="card">
+          <h2>Notification Preview</h2>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Example of what the accepted boost notification looks like in Discord:</p>
+          <div style="background:#080a0e;border:1px solid var(--border);border-radius:8px;padding:14px;
+            font-family:monospace;font-size:11px;color:#b0b8c8;white-space:pre-line;line-height:1.6">━━━━━━━━━━━━━━━━━━━━
+✅  BOOST ACCEPTED
+━━━━━━━━━━━━━━━━━━━━
+
+Boost ID: `abc-123`
+Status: ACCEPTED
+
+Server: ExampleServer
+Guild ID: `123456789012345678`
+Category: boosts
+Channel: #nostack-4x12-ovhel
+Channel ID: `987654321098765432`
+
+Customer: ovhel
+Dungeon Type: nostack
+Dungeon Level: +12
+Count: 4
+
+━━━━━━━━━━━━━━━━━━━━
+📨  BOOST MESSAGE
+━━━━━━━━━━━━━━━━━━━━
+
+Message Content:
+> Interested in +12 for ovhel
+Outgoing Message ID: `111222333444`
+
+━━━━━━━━━━━━━━━━━━━━
+🎯  ACCEPTANCE
+━━━━━━━━━━━━━━━━━━━━
+
+Accepted By: username
+Acceptance Method: REACTION
+Reaction: ✅
+
+━━━━━━━━━━━━━━━━━━━━
+⏸  System is paused. Admin must press CONTINUE.
+━━━━━━━━━━━━━━━━━━━━</div>
+        </div>
+      </div>
+
+      <!-- ═══ ALL BOOSTS ═══ -->
+      <div id="s-boosts" class="section">
+        <div class="flex-b" style="margin-bottom:12px">
+          <h2 style="font-size:16px">All Boosts</h2>
+          <button class="btn btn-g btn-sm" onclick="loadBoosts()">🔄</button>
+        </div>
+        <div class="filter-row">
+          <div class="fg"><label>Status</label>
+            <select id="b-filter-status" style="width:120px">
+              <option value="">All</option>
+              <option value="SENT">SENT</option>
+              <option value="ACCEPTED">ACCEPTED</option>
+              <option value="IGNORED">IGNORED</option>
+              <option value="ERROR">ERROR</option>
+            </select></div>
+          <div class="fg"><label>Customer</label>
+            <input type="text" id="b-filter-customer" placeholder="customer" style="width:120px"/></div>
+          <div class="fg"><label>Min Level</label>
+            <input type="number" id="b-filter-min" placeholder="10" style="width:70px"/></div>
+          <div class="fg"><label>Max Level</label>
+            <input type="number" id="b-filter-max" placeholder="12" style="width:70px"/></div>
+          <button class="btn btn-g btn-sm" onclick="loadBoosts()">Filter</button>
+        </div>
+        <div id="boosts-wrap"><div class="empty">No boosts yet</div></div>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn btn-g btn-sm" onclick="boostsPage(-1)">← Prev</button>
+          <span id="boosts-page-info" style="font-size:12px;color:var(--muted);align-self:center"></span>
+          <button class="btn btn-g btn-sm" onclick="boostsPage(1)">Next →</button>
+        </div>
+      </div>
+
+      <!-- ═══ ACCEPTANCES ═══ -->
+      <div id="s-accepts" class="section">
+        <div class="flex-b" style="margin-bottom:12px">
+          <h2 style="font-size:16px">Acceptances</h2>
+          <button class="btn btn-g btn-sm" onclick="loadAccepts()">🔄</button>
+        </div>
+        <div id="accepts-wrap"><div class="empty">No acceptances yet</div></div>
+      </div>
+
+      <!-- ═══ LOGS ═══ -->
+      <div id="s-mplus-logs" class="section">
+        <div class="flex-b" style="margin-bottom:12px">
+          <h2 style="font-size:16px">M+ Logs</h2>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-g btn-sm" onclick="loadMplusLogs()">🔄</button>
+            <button class="btn btn-d btn-sm" onclick="clearMplusLogs()">🗑</button>
+          </div>
+        </div>
+        <div class="filter-row">
+          <div class="fg"><label>Level</label>
+            <select id="ml-filter-level" style="width:110px">
+              <option value="">All</option>
+              <option value="info">Info</option><option value="success">Success</option>
+              <option value="warn">Warn</option><option value="error">Error</option>
+            </select></div>
+          <div class="fg"><label>Search</label>
+            <input type="text" id="ml-filter-search" placeholder="Search…" style="width:200px"/></div>
+          <button class="btn btn-g btn-sm" onclick="loadMplusLogs()">Filter</button>
+        </div>
+        <div id="log-box"><div class="empty">No logs yet</div></div>
+      </div>
+
+      <!-- ═══ TELEGRAM ═══ -->
+      <div id="s-telegram" class="section">
+        <div class="card">
+          <h2>Telegram</h2>
+          <div class="fg"><label>Chat ID</label>
+            <input type="text" id="tg-chat-id" placeholder="-100123456789"/></div>
+          <span class="hint" id="tg-token-status" style="margin-bottom:10px;display:block"></span>
+          <div class="btn-row">
+            <button class="btn btn-p" id="save-tg-btn">💾 Save</button>
+            <button class="btn btn-g" id="test-tg-btn">📤 Test</button>
+          </div>
+          <div id="tg-test-result" style="margin-top:8px;font-size:12px;"></div>
+        </div>
+        <div class="card">
+          <h2>Alert Triggers</h2>
+          <div class="tog-row">
+            <div><div class="tog-lbl">Boost Accepted</div></div>
+            <label class="toggle"><input type="checkbox" id="tg-acc"/><span class="slider"></span></label>
+          </div>
+          <div class="tog-row">
+            <div><div class="tog-lbl">New Boost Message Sent</div></div>
+            <label class="toggle"><input type="checkbox" id="tg-boost"/><span class="slider"></span></label>
+          </div>
+          <div class="tog-row">
+            <div><div class="tog-lbl">New Channel</div></div>
+            <label class="toggle"><input type="checkbox" id="tg-ch"/><span class="slider"></span></label>
+          </div>
+          <div class="tog-row">
+            <div><div class="tog-lbl">Errors</div></div>
+            <label class="toggle"><input type="checkbox" id="tg-err"/><span class="slider"></span></label>
+          </div>
+          <button class="btn btn-p" id="save-tg-toggles-btn" style="margin-top:12px">💾 Save</button>
+        </div>
+      </div>
+
+      <!-- ═══ SETTINGS ═══ -->
+      <div id="s-settings" class="section">
+        <div class="card">
+          <h2>Health</h2>
+          <div id="health-content"><div class="empty">Click refresh</div></div>
+          <button class="btn btn-g btn-sm" style="margin-top:10px" onclick="loadHealth()">🔄 Refresh</button>
+        </div>
+
+        <div class="card">
+          <h2>⏱ Channel / Sign Timing</h2>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:14px">
+            Controls how frequently channel discovery runs and how long the system waits before sending Sign messages.
+          </p>
+          <div class="two-col">
+            <div class="fg">
+              <label>Channel Discovery Interval (seconds)</label>
+              <input type="number" id="timing-discovery" min="1" max="300" value="5"/>
+              <span class="hint">How often Discord is checked for new/deleted channels (1–300s). Default: 5</span>
+            </div>
+            <div class="fg">
+              <label>Sign Delay After Discovery (seconds)</label>
+              <input type="number" id="timing-sign-delay" min="0" max="60" value="3"/>
+              <span class="hint">Delay from channel discovery to sending the Sign message (0–60s). Default: 3</span>
+            </div>
+          </div>
+          <div class="fg" style="max-width:260px">
+            <label>Queue Delay Between Signs (seconds)</label>
+            <input type="number" id="timing-queue-delay" min="1" max="60" value="2"/>
+            <span class="hint">Delay between consecutive Sign messages when multiple channels are queued (1–60s). Default: 2</span>
+          </div>
+          <button class="btn btn-p" id="save-timing-btn">💾 Save Timing</button>
+          <div id="timing-status" style="margin-top:8px;font-size:12px;"></div>
+        </div>
+
+        <div class="card">
+          <h2>Discord API Rate-Limit Status</h2>
+          <p style="font-size:11px;color:var(--muted);margin-bottom:10px">
+            Per-invocation stats. Resets on each Worker execution.
+          </p>
+          <div id="rl-content"><div class="empty">Click refresh</div></div>
+          <button class="btn btn-g btn-sm" style="margin-top:10px" onclick="loadRlStatus()">🔄 Refresh</button>
+        </div>
+
+        <div class="card">
+          <h2>Emergency Controls</h2>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Use only if the system is stuck.</p>
+          <div class="btn-row">
+            <button class="btn btn-w" onclick="forceRelease()">🔓 Force Release State</button>
+            <button class="btn btn-d" onclick="disableAll()">⏹ Disable Everything</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ ORIGINAL BOT ═══ -->
+      <div id="s-original-bot" class="section">
+        <div class="card">
+          <div class="flex-b" style="margin-bottom:12px">
+            <h2 style="margin:0">Original Bot</h2>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-s btn-sm" onclick="origBotEnable()">▶</button>
+              <button class="btn btn-d btn-sm" onclick="origBotDisable()">⏹</button>
+            </div>
+          </div>
+          <div id="orig-status" style="font-size:13px;color:var(--muted)">Loading…</div>
+        </div>
+        <div class="card">
+          <div class="flex-b" style="margin-bottom:10px">
+            <h2 style="margin:0">KV Logs</h2>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-g btn-sm" onclick="loadOrigLogs()">🔄</button>
+              <button class="btn btn-d btn-sm" onclick="clearOrigLogs()">🗑</button>
+            </div>
+          </div>
+          <div id="orig-log-box" style="background:#080a0e;border:1px solid var(--border);
+            border-radius:8px;padding:10px;height:260px;overflow-y:auto;font-family:monospace;font-size:12px;">
+            <div class="empty">No logs</div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Pending Approval</h2>
+          <div id="orig-approval" style="font-size:13px;color:var(--muted)">None</div>
+          <div class="btn-row" style="margin-top:10px">
+            <button class="btn btn-s btn-sm" onclick="origApprove()">✓ Approve</button>
+            <button class="btn btn-d btn-sm" onclick="origDeny()">✗ Deny</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<div id="toasts"></div>
+<div id="modal-overlay"><div class="modal-box">
+  <div class="flex-b" style="margin-bottom:14px">
+    <strong id="modal-title"></strong>
+    <button class="btn btn-g btn-sm" onclick="closeModal()">✕</button>
+  </div>
+  <div id="modal-body"></div>
+</div></div>
+
+<script>
+// ══ Utils ══════════════════════════════════════════════════════
+function toast(msg,type='info'){
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;
+  el.textContent=({'success':'✓ ','error':'✗ ','warn':'⚠ ','info':'ℹ '}[type]||'ℹ ')+msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(()=>el.remove(),4000);
+}
+async function api(method,path,body){
+  const r=await fetch(path,{method,headers:{'Content-Type':'application/json'},
+    ...(body!==undefined?{body:JSON.stringify(body)}:{})});
+  if(r.status===401){showLogin();return null;}
+  return r.json();
+}
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmtDate(ms){if(!ms)return'—';return new Date(ms).toLocaleString('en',{hour12:false,
+  month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+function openModal(t,h){document.getElementById('modal-title').textContent=t;
+  document.getElementById('modal-body').innerHTML=h;
+  document.getElementById('modal-overlay').style.display='flex';}
+function closeModal(){document.getElementById('modal-overlay').style.display='none';}
+
+// ══ Auth ════════════════════════════════════════════════════════
+function showLogin(){
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  if(wsConn){wsConn.close();wsConn=null;}
+}
+function showApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  loadAll();startWs();startPoll();
+}
+document.getElementById('login-btn').onclick=async()=>{
+  const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({password:document.getElementById('pw').value})});
+  if(r.ok){document.getElementById('login-err').style.display='none';showApp();}
+  else document.getElementById('login-err').style.display='block';
+};
+document.getElementById('pw').addEventListener('keydown',e=>{
+  if(e.key==='Enter')document.getElementById('login-btn').click();});
+document.getElementById('logout-btn').onclick=async()=>{await api('POST','/api/logout');showLogin();};
+
+// ══ Nav ══════════════════════════════════════════════════════════
+const sectionLoaders={
+  dashboard:loadDashboard,servers:loadGuilds,channels:loadChannels,
+  filters:loadFilters,messages:loadMessages,notification:loadNotification,
+  boosts:loadBoosts,accepts:loadAccepts,'mplus-logs':loadMplusLogs,
+  telegram:loadTelegram,settings:()=>{loadHealth();loadRlStatus();loadTiming();},
+  'original-bot':()=>{loadOrigStatus();loadOrigLogs();},
+  'accept-boost':loadAcceptBoostPage,
+};
+document.querySelectorAll('nav button[data-s]').forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.getElementById('s-'+btn.dataset.s).classList.add('active');
+    sectionLoaders[btn.dataset.s]?.();
+  };
+});
+
+// ══ WebSocket ════════════════════════════════════════════════════
+let wsConn=null,wsRetry=null;
+function startWs(){
+  if(wsRetry){clearTimeout(wsRetry);wsRetry=null;}
+  const ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws`);
+  wsConn=ws;
+  ws.onopen=()=>document.getElementById('ws-ind').style.color='var(--green)';
+  ws.onclose=()=>{document.getElementById('ws-ind').style.color='var(--red)';
+    wsConn=null;wsRetry=setTimeout(startWs,5000);};
+  ws.onerror=()=>ws.close();
+  ws.onmessage=e=>{
+    try{
+      const ev=JSON.parse(e.data);
+      if(ev.type==='PING')return;
+      if(['MONITORING_CHANGED','BOOST_ACCEPTED','BOOST_WAITING','BOOST_INACTIVE'].includes(ev.type)){
+        loadDashboard();
+        if(ev.type==='BOOST_ACCEPTED'){
+          loadAcceptBoostPage();
+          // highlight nav badge
+          document.getElementById('nav-accept-boost').innerHTML='✅ Accept Boost <span class="nav-badge alert">NEW</span>';
+          toast('🎯 Boost Accepted! Check Accept Boost page.','success');
+        }
+      }
+      if(['CHANNEL_CREATED','CHANNEL_UPDATED','CHANNEL_DELETED'].includes(ev.type)){
+        if(document.querySelector('nav button.active')?.dataset.s==='channels')loadChannels();
+        loadDashboard();
+      }
+      if(ev.type==='BOOST_WAITING'){
+        toast(`📨 Message sent: ${ev.payload?.channelName} +${ev.payload?.level}. Monitoring continues.`,'warn');
+        loadDashboard();
+      }
+    }catch{}
+  };
+}
+let pollTimer=null;
+function startPoll(){
+  if(pollTimer)clearInterval(pollTimer);
+  pollTimer=setInterval(()=>sectionLoaders[document.querySelector('nav button.active')?.dataset.s]?.(),15000);
+}
+
+// ══ Dashboard ══════════════════════════════════════════════════
+async function loadAll(){await loadDashboard();}
+
+async function loadDashboard(){
+  const data=await api('GET','/api/dashboard/stats');
+  if(!data)return;
+
+  document.getElementById('st-guilds').textContent=data.totalGuilds??0;
+  document.getElementById('st-channels').textContent=data.totalChannels??0;
+  document.getElementById('st-sent').textContent=data.sentBoostCount??0;
+  document.getElementById('st-accepted').textContent=data.acceptedBoosts??0;
+  document.getElementById('st-errors').textContent=data.errorBoosts??0;
+
+  const state=data.monitoringState??'INACTIVE';
+  const paused=data.pausedForConfirmation??false;
+
+  // Header
+  const dot=document.getElementById('hdr-dot');
+  const txt=document.getElementById('hdr-state');
+  if(paused){
+    dot.className='sdot paused';txt.textContent='PAUSED FOR CONFIRMATION';txt.style.color='var(--accent)';
+  } else if(state==='ACTIVE'){
+    dot.className='sdot active';txt.textContent='ACTIVE — Monitoring';txt.style.color='var(--green)';
+  } else {
+    dot.className='sdot inactive';txt.textContent='INACTIVE';txt.style.color='var(--muted)';
+  }
+
+  // State badge
+  const sb=document.getElementById('state-badge');
+  const sd=document.getElementById('state-desc');
+  if(paused){
+    sb.className='badge ba';sb.textContent='PAUSED_FOR_CONFIRMATION';
+    sd.textContent='Boost accepted — press CONTINUE to monitor next boost';
+  } else {
+    const m={INACTIVE:{cls:'bm',txt:'INACTIVE',desc:'Monitoring disabled'},
+              ACTIVE:{cls:'bg',txt:'ACTIVE',desc:'Monitoring all TEXTLIMITED channels concurrently'},
+              PAUSED_FOR_CONFIRMATION:{cls:'ba',txt:'PAUSED',desc:'Waiting for CONTINUE'}}[state]
+             ||{cls:'bm',txt:state,desc:''};
+    sb.className='badge '+m.cls;sb.textContent=m.txt;sd.textContent=m.desc;
+  }
+
+  // Paused banner
+  document.getElementById('paused-banner').style.display=paused?'flex':'none';
+
+  // Sent boosts table
+  renderSentBoostsTable(data.sentBoosts||[]);
+
+  // Recent boosts
+  const boosts=await api('GET','/api/boosts?limit=8');
+  renderBoostsTable(document.getElementById('recent-boosts-wrap'),boosts||[]);
+
+  // Accept boost nav badge
+  if(paused&&data.lastAcceptedBoost){
+    document.getElementById('nav-accept-boost').innerHTML='✅ Accept Boost <span class="nav-badge alert">!</span>';
+  } else {
+    document.getElementById('nav-accept-boost').textContent='✅ Accept Boost';
+  }
+}
+
+function renderSentBoostsTable(sentBoosts){
+  const wrap=document.getElementById('sent-boosts-wrap');
+  if(!sentBoosts.length){
+    wrap.innerHTML='<div class="empty" style="padding:20px">No active boost messages — system is monitoring channels</div>';
+    return;
+  }
+  wrap.innerHTML=`<table class="tbl">
+    <thead><tr><th>Channel</th><th>Server</th><th>Customer</th><th>Level</th><th>Count</th><th>Type</th><th>Msg ID</th><th>Sent</th></tr></thead>
+    <tbody>${sentBoosts.map(b=>`<tr>
+      <td>#${esc(b.channel_name)}<br><code>${esc(b.channel_id)}</code></td>
+      <td style="font-size:11px">${esc(b.guild_name)}</td>
+      <td>${esc(b.customer)}</td>
+      <td><span class="badge by">+${b.level}</span></td>
+      <td>${b.count}</td>
+      <td>${esc(b.boost_type)}</td>
+      <td><code style="font-size:10px">${esc(b.outgoing_message_id?.slice(-8)||'—')}</code></td>
+      <td style="font-size:11px">${fmtDate(b.sent_at)}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+// ══ Accept Boost Page ══════════════════════════════════════════
+async function loadAcceptBoostPage(){
+  const data=await api('GET','/api/dashboard/stats');
+  if(!data)return;
+
+  const card=document.getElementById('accept-boost-card');
+  const noMsg=document.getElementById('no-accept-msg');
+  const b=data.lastAcceptedBoost;
+
+  if(!b||!data.pausedForConfirmation){
+    card.style.display='none';noMsg.style.display='block';return;
+  }
+  noMsg.style.display='none';card.style.display='block';
+
+  document.getElementById('accept-boost-detail').innerHTML=`
+    <div class="accept-row"><span class="accept-lbl">Boost ID</span><span class="accept-val"><code>${esc(b.id)}</code></span></div>
+    <div class="accept-row"><span class="accept-lbl">Server</span><span class="accept-val">${esc(b.guild_name)}</span></div>
+    <div class="accept-row"><span class="accept-lbl">Guild ID</span><span class="accept-val"><code>${esc(b.guild_id)}</code></span></div>
+    <div class="accept-row"><span class="accept-lbl">Category</span><span class="accept-val">${esc(b.category_name||'—')}</span></div>
+    <div class="accept-row"><span class="accept-lbl">Category ID</span><span class="accept-val"><code>${esc(b.category_id||'—')}</code></span></div>
+    <div class="accept-row"><span class="accept-lbl">Channel</span><span class="accept-val">#${esc(b.channel_name)}</span></div>
+    <div class="accept-row"><span class="accept-lbl">Channel ID</span><span class="accept-val"><code>${esc(b.channel_id)}</code></span></div>
+    <div class="accept-row"><span class="accept-lbl">Customer</span><span class="accept-val">${esc(b.customer)}</span></div>
+    <div class="accept-row"><span class="accept-lbl">Dungeon Level</span><span class="accept-val">+${b.level}</span></div>
+    <div class="accept-row"><span class="accept-lbl">Count</span><span class="accept-val">${b.count}</span></div>
+    <div class="accept-row"><span class="accept-lbl">Type</span><span class="accept-val">${esc(b.boost_type)}</span></div>
+    <div class="accept-row" style="grid-column:1/-1"><span class="accept-lbl">Sent Message</span>
+      <span class="accept-val"><em>${esc(b.outgoing_message_content||'—')}</em></span></div>
+    <div class="accept-row"><span class="accept-lbl">Message ID</span><span class="accept-val"><code>${esc(b.outgoing_message_id||'—')}</code></span></div>
+    <div class="accept-row"><span class="accept-lbl">Sent At</span><span class="accept-val">${fmtDate(b.sent_at)}</span></div>
+    <div class="accept-row"><span class="accept-lbl">Acceptance Method</span><span class="accept-val">${esc(b.acceptance_method||'—')}</span></div>
+    <div class="accept-row"><span class="accept-lbl">Accepted By</span><span class="accept-val">${esc(b.accepted_by_username||b.accepted_by_user_id||'—')}</span></div>
+    <div class="accept-row"><span class="accept-lbl">Accepted User ID</span><span class="accept-val"><code>${esc(b.accepted_by_user_id||'—')}</code></span></div>
+    <div class="accept-row"><span class="accept-lbl">Reaction</span><span class="accept-val">${esc(b.accepted_reaction||'—')}</span></div>
+    <div class="accept-row"><span class="accept-lbl">Accepted At</span><span class="accept-val">${fmtDate(b.accepted_at)}</span></div>
+  `;
+}
+
+async function doContinue(){
+  const r=await api('POST','/api/monitor/continue');
+  if(r?.ok){
+    toast('✅ Resumed — monitoring next boost','success');
+    document.getElementById('nav-accept-boost').textContent='✅ Accept Boost';
+    loadDashboard();
+    loadAcceptBoostPage();
+  } else toast(r?.error||'Error','error');
+}
+
+async function retryNotification(){
+  const r=await api('POST','/api/monitor/retry-notification');
+  if(r?.ok||r?.message){toast('Notification retried','success');}
+  else toast(r?.error||'Error','error');
+}
+
+document.getElementById('continue-btn').onclick=doContinue;
+document.getElementById('continue-btn2').onclick=doContinue;
+document.getElementById('force-release-btn').onclick=async()=>{
+  if(!confirm('Force release stuck state?'))return;
+  const r=await api('POST','/api/monitor/force-release');
+  if(r?.ok){toast('State released','success');loadDashboard();}
+};
+
+// ══ Monitor controls ════════════════════════════════════════════
+document.getElementById('enable-btn').onclick=async()=>{
+  const r=await api('POST','/api/monitor/enable');
+  if(r?.ok){toast('Monitoring enabled','success');loadDashboard();}
+};
+document.getElementById('disable-btn').onclick=async()=>{
+  const r=await api('POST','/api/monitor/disable');
+  if(r?.ok){toast('Monitoring disabled','warn');loadDashboard();}
+};
+document.getElementById('trigger-btn').onclick=async()=>{
+  const btn=document.getElementById('trigger-btn');
+  btn.textContent='⏳ Running…';btn.disabled=true;
+  const r=await api('POST','/api/monitor/trigger');
+  btn.textContent='⚡ Run Now';btn.disabled=false;
+  if(r?.message||r?.ok){toast('Monitor tick executed — check logs','success');loadDashboard();loadMplusLogs();}
+  else toast(r?.error||'Error','error');
+};
+
+// ══ Guilds ══════════════════════════════════════════════════════
+const CHAR_TYPES=['nostack','plate','cloth','mail','leather'];
+
+async function loadGuilds(){
+  const guilds=await api('GET','/api/guilds');
+  const wrap=document.getElementById('guilds-wrap');
+  if(!guilds?.length){wrap.innerHTML='<div class="empty">No servers yet</div>';return;}
+  wrap.innerHTML=guilds.map(g=>{
+    const enabled=Array.isArray(g.char_enabled)?g.char_enabled:CHAR_TYPES;
+    const allowAll=g.char_allow_all!==false;
+    const checks=CHAR_TYPES.map(t=>`
+      <label style="display:inline-flex;align-items:center;gap:5px;margin-right:10px;font-size:12px;cursor:pointer">
+        <input type="checkbox" data-guild="${esc(g.id)}" data-type="${esc(t)}"
+          ${(allowAll||enabled.includes(t))?'checked':''} onchange="saveCharTypes('${esc(g.id)}')"/>
+        ${esc(t)}
+      </label>`).join('');
+    return`<div class="card" style="margin-bottom:10px">
+      <div class="flex-b">
+        <div><strong>${esc(g.name)}</strong>
+          <span class="badge ${g.monitoring?'bg':'bm'}" style="margin-left:8px">${g.monitoring?'MONITORED':'NOT MONITORED'}</span>
+        </div>
+        <button class="btn btn-d btn-sm" onclick="removeGuild('${esc(g.id)}')">Remove</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">
+        ID: <code>${esc(g.id)}</code> | Categories: ${g.category_count??0} | Channels: ${g.channel_count??0}
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Character Types</div>
+        <div>${checks}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function saveCharTypes(guildId){
+  const checks=document.querySelectorAll(`input[data-guild="${guildId}"]`);
+  const enabled=[...checks].filter(c=>c.checked).map(c=>c.dataset.type);
+  const allowAll=enabled.length===CHAR_TYPES.length;
+  const r=await api('POST',`/api/guilds/${guildId}/char-types`,{allow_all:allowAll,enabled_types:enabled});
+  if(r?.ok)toast('Character types saved','success');else toast(r?.error||'Error','error');
+}
+
+async function removeGuild(id){
+  if(!confirm('Remove?'))return;
+  const r=await api('DELETE',`/api/monitor/guild/${id}`);
+  if(r?.ok){toast('Removed','warn');loadGuilds();}
+}
+document.getElementById('resolve-btn').onclick=async()=>{
+  const id=document.getElementById('resolve-id').value.trim();
+  const res=document.getElementById('resolve-result');
+  if(!id)return;
+  res.innerHTML='<span style="color:var(--muted)">Resolving…</span>';
+  const r=await api('POST','/api/monitor/resolve',{id});
+  if(!r){res.innerHTML='';return;}
+  if(r.error){res.innerHTML=`<span style="color:var(--red)">✗ ${esc(r.error)}</span>`;return;}
+  res.innerHTML=`<span style="color:var(--green)">✓ ${esc(r.type)}: ${esc(r.resourceName)} (${esc(r.guildName)})</span>`;
+  document.getElementById('resolve-id').value='';
+  loadGuilds();
+};
+
+// ══ Channels ════════════════════════════════════════════════════
+async function loadChannels(){
+  const guildId=document.getElementById('ch-filter-guild')?.value||undefined;
+  const activeStr=document.getElementById('ch-filter-active')?.value;
+  const parsedFilter=document.getElementById('ch-filter-parsed')?.value;
+  let url='/api/channels?';
+  if(guildId)url+=`guildId=${encodeURIComponent(guildId)}&`;
+  if(activeStr)url+=`active=${encodeURIComponent(activeStr)}&`;
+  const channels=await api('GET',url);
+  let list=channels||[];
+  if(parsedFilter==='PARSED')list=list.filter(c=>c.parse_status==='PARSED');
+  if(parsedFilter==='UNPARSED')list=list.filter(c=>c.parse_status==='UNPARSED');
+  const gf=document.getElementById('ch-filter-guild');
+  const guilds=[...new Set(list.map(c=>c.guild_id))];
+  const cv=gf.value;
+  gf.innerHTML='<option value="">All</option>'+
+    guilds.map(gid=>`<option value="${esc(gid)}"${cv===gid?' selected':''}>${esc(list.find(c=>c.guild_id===gid)?.guild_name||gid)}</option>`).join('');
+  const wrap=document.getElementById('channels-wrap');
+  if(!list.length){wrap.innerHTML='<div class="empty">No channels</div>';return;}
+  wrap.innerHTML=`<table class="tbl">
+    <thead><tr><th>Channel</th><th>Server</th><th>Parse</th><th>Type</th><th>Lv</th><th>Count</th><th>Customer</th><th>State</th><th>Monitor</th></tr></thead>
+    <tbody>${list.map(c=>`<tr>
+      <td><code>${esc(c.id.slice(-6))}</code> #${esc(c.name)}</td>
+      <td style="font-size:11px">${esc(c.guild_name)}</td>
+      <td><span class="badge ${c.parse_status==='PARSED'?'bg':'br'}">${esc(c.parse_status)}</span></td>
+      <td>${esc(c.boost_type||'—')}</td>
+      <td>${c.boost_level!=null?'+'+c.boost_level:'—'}</td>
+      <td>${c.boost_count??'—'}</td>
+      <td>${esc(c.customer||'—')}</td>
+      <td><span class="badge ${c.active?'bg':'br'}">${c.active?'ACT':'DEL'}</span></td>
+      <td><span class="badge ${c.monitoring?'bg':'bm'}">${c.monitoring?'YES':'NO'}</span></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+// ══ Filters ═════════════════════════════════════════════════════
+async function loadFilters(){
+  const r=await api('GET','/api/monitor/config');if(!r)return;
+  document.getElementById('f-min').value=r.min_level??10;
+  document.getElementById('f-max').value=r.max_level??12;
+  document.getElementById('f-acc-react').checked=!!r.accept_reaction;
+  document.getElementById('f-any-react').checked=r.any_reaction_accepted!==0;
+  document.getElementById('f-reactions').value=r.accepted_reactions??'✅';
+  document.getElementById('f-acc-mention').checked=!!r.accept_mention;
+  document.getElementById('f-mention-target').value=r.mention_target_id??'';
+  document.getElementById('specific-reactions-row').style.opacity=r.any_reaction_accepted!==0?'0.4':'1';
+}
+document.getElementById('f-any-react').onchange=()=>{
+  document.getElementById('specific-reactions-row').style.opacity=document.getElementById('f-any-react').checked?'0.4':'1';
+};
+document.getElementById('save-filter-btn').onclick=async()=>{
+  const min=parseInt(document.getElementById('f-min').value);
+  const max=parseInt(document.getElementById('f-max').value);
+  if(isNaN(min)||isNaN(max)||min<1){toast('Invalid','error');return;}
+  if(min>max){toast('Min must be ≤ Max','error');return;}
+  const r=await api('POST','/api/monitor/config',{min_level:min,max_level:max});
+  if(r?.ok)toast('Saved','success');else toast(r?.error||'Error','error');
+};
+document.getElementById('save-accept-btn').onclick=async()=>{
+  const r=await api('POST','/api/monitor/config',{
+    accept_reaction:document.getElementById('f-acc-react').checked,
+    any_reaction_accepted:document.getElementById('f-any-react').checked,
+    accepted_reactions:document.getElementById('f-reactions').value,
+    accept_mention:document.getElementById('f-acc-mention').checked,
+    mention_target_id:document.getElementById('f-mention-target').value||null,
+  });
+  if(r?.ok)toast('Saved','success');else toast(r?.error||'Error','error');
+};
+
+// ══ Messages ════════════════════════════════════════════════════
+async function loadMessages(){
+  const r=await api('GET','/api/monitor/config');if(!r)return;
+  document.getElementById('msg-template').value=r.message_template||'Interested in +{level} for {customer}';
+  previewTemplate();
+}
+function previewTemplate(){
+  const t=document.getElementById('msg-template').value;
+  document.getElementById('msg-preview').textContent=t
+    .replace(/\{server\}/g,'ExampleServer').replace(/\{guild\}/g,'123456789012345678')
+    .replace(/\{category\}/g,'boosts').replace(/\{channel\}/g,'nostack-4x12-ovhel')
+    .replace(/\{channel_id\}/g,'987654321098765432').replace(/\{customer\}/g,'ovhel')
+    .replace(/\{level\}/g,'12').replace(/\{count\}/g,'4')
+    .replace(/\{type\}/g,'nostack').replace(/\{timestamp\}/g,new Date().toISOString());
+}
+document.getElementById('msg-template').oninput=previewTemplate;
+document.getElementById('save-msg-btn').onclick=async()=>{
+  const t=document.getElementById('msg-template').value.trim();
+  if(!t){toast('Empty','error');return;}
+  const r=await api('POST','/api/monitor/config',{message_template:t});
+  if(r?.ok)toast('Saved','success');else toast(r?.error||'Error','error');
+};
+
+// ══ Notification Channel ════════════════════════════════════════
+async function loadNotification(){
+  const r=await api('GET','/api/monitor/config');if(!r)return;
+  document.getElementById('notif-channel-id').value=r.notification_channel_id??'';
+  const st=document.getElementById('notif-status');
+  if(r.notification_channel_id){
+    st.textContent='✓ Channel configured: '+r.notification_channel_id;
+    st.style.color='var(--green)';
+  } else {
+    st.textContent='⚠ Not configured';st.style.color='var(--yellow)';
+  }
+}
+document.getElementById('save-notif-btn').onclick=async()=>{
+  const id=document.getElementById('notif-channel-id').value.trim();
+  if(id&&!/^\d{17,21}$/.test(id)){toast('Invalid Discord Channel ID','error');return;}
+  const r=await api('POST','/api/monitor/config',{notification_channel_id:id||null});
+  if(r?.ok){toast('Saved','success');loadNotification();}else toast(r?.error||'Error','error');
+};
+document.getElementById('test-notif-btn').onclick=async()=>{
+  const st=document.getElementById('notif-status');
+  st.textContent='Sending test…';st.style.color='var(--muted)';
+  const r=await api('POST','/api/monitor/test-notification');
+  if(!r){st.textContent='';return;}
+  if(r.ok){st.textContent='✓ Test notification sent! Channel is CONNECTED.';st.style.color='var(--green)';}
+  else{st.textContent='✗ Failed: '+(r.error||'unknown');st.style.color='var(--red)';}
+};
+
+// ══ Boosts ══════════════════════════════════════════════════════
+let boostsOffset=0;const boostsLimit=20;
+function boostsPage(d){boostsOffset=Math.max(0,boostsOffset+d*boostsLimit);loadBoosts();}
+function statusBadge(s){const m={SENT:'by',WAITING:'by',ACCEPTED:'bg',IGNORED:'bm',ERROR:'br',ACTIVE:'bb'};
+  return`<span class="badge ${m[s]||'bm'}">${esc(s)}</span>`;}
+async function loadBoosts(){
+  const status=document.getElementById('b-filter-status')?.value||undefined;
+  const customer=document.getElementById('b-filter-customer')?.value||undefined;
+  const minLevel=document.getElementById('b-filter-min')?.value||undefined;
+  const maxLevel=document.getElementById('b-filter-max')?.value||undefined;
+  let url=`/api/boosts?limit=${boostsLimit}&offset=${boostsOffset}`;
+  if(status)url+=`&status=${encodeURIComponent(status)}`;
+  if(customer)url+=`&customer=${encodeURIComponent(customer)}`;
+  if(minLevel)url+=`&minLevel=${encodeURIComponent(minLevel)}`;
+  if(maxLevel)url+=`&maxLevel=${encodeURIComponent(maxLevel)}`;
+  const boosts=await api('GET',url);
+  renderBoostsTable(document.getElementById('boosts-wrap'),boosts||[]);
+  document.getElementById('boosts-page-info').textContent=`${boostsOffset+1}–${boostsOffset+(boosts?.length||0)}`;
+}
+function renderBoostsTable(wrap,boosts){
+  if(!boosts?.length){wrap.innerHTML='<div class="empty">No boosts</div>';return;}
+  wrap.innerHTML=`<table class="tbl">
+    <thead><tr><th>Status</th><th>Channel</th><th>Server</th><th>Customer</th><th>Lv</th><th>Count</th><th>Type</th><th>Created</th><th>Accepted</th></tr></thead>
+    <tbody>${boosts.map(b=>`<tr style="cursor:pointer" onclick="openBoostModal('${esc(b.id)}')">
+      <td>${statusBadge(b.status)}</td>
+      <td style="font-size:11px">#${esc(b.channel_name)}</td>
+      <td style="font-size:11px">${esc(b.guild_name)}</td>
+      <td>${esc(b.customer)}</td>
+      <td>+${b.level}</td><td>${b.count}</td><td>${esc(b.boost_type)}</td>
+      <td style="font-size:11px">${fmtDate(b.created_at)}</td>
+      <td style="font-size:11px">${b.accepted_at?fmtDate(b.accepted_at):'—'}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+async function openBoostModal(id){
+  const b=await api('GET',`/api/boosts/${id}`);if(!b)return;
+  openModal(`Boost`,`<table class="tbl">
+    <tr><td><b>ID</b></td><td><code style="font-size:10px">${esc(b.id)}</code></td></tr>
+    <tr><td><b>Status</b></td><td>${statusBadge(b.status)}</td></tr>
+    <tr><td><b>Guild</b></td><td>${esc(b.guild_name)}</td></tr>
+    <tr><td><b>Channel</b></td><td>#${esc(b.channel_name)} <code>${esc(b.channel_id)}</code></td></tr>
+    <tr><td><b>Customer</b></td><td>${esc(b.customer)}</td></tr>
+    <tr><td><b>Level</b></td><td>+${b.level}</td></tr>
+    <tr><td><b>Count</b></td><td>${b.count}</td></tr>
+    <tr><td><b>Type</b></td><td>${esc(b.boost_type)}</td></tr>
+    <tr><td><b>Message</b></td><td><em>${esc(b.outgoing_message_content||'—')}</em></td></tr>
+    <tr><td><b>Msg ID</b></td><td><code>${esc(b.outgoing_message_id||'—')}</code></td></tr>
+    <tr><td><b>Created</b></td><td>${fmtDate(b.created_at)}</td></tr>
+    <tr><td><b>Sent</b></td><td>${fmtDate(b.sent_at)}</td></tr>
+    <tr><td><b>Accepted</b></td><td>${fmtDate(b.accepted_at)}</td></tr>
+    <tr><td><b>Method</b></td><td>${esc(b.acceptance_method||'—')}</td></tr>
+    <tr><td><b>Accepted By</b></td><td>${esc(b.accepted_by_username||b.accepted_by_user_id||'—')}</td></tr>
+    <tr><td><b>Reaction</b></td><td>${esc(b.accepted_reaction||'—')}</td></tr>
+  </table>`);
+}
+
+// ══ Accepts ═════════════════════════════════════════════════════
+async function loadAccepts(){
+  const accepts=await api('GET','/api/accepts?limit=100');
+  const wrap=document.getElementById('accepts-wrap');
+  if(!accepts?.length){wrap.innerHTML='<div class="empty">No acceptances yet</div>';return;}
+  wrap.innerHTML=`<table class="tbl">
+    <thead><tr><th>Boost ID</th><th>Method</th><th>By</th><th>Reaction</th><th>Channel</th><th>Time</th></tr></thead>
+    <tbody>${accepts.map(a=>`<tr>
+      <td><code style="font-size:10px">${esc(a.boost_id.slice(0,8))}…</code></td>
+      <td><span class="badge ${a.method==='REACTION'?'bb':'bg'}">${esc(a.method)}</span></td>
+      <td>${esc(a.accepted_by_username||a.accepted_by_user_id)}</td>
+      <td>${esc(a.reaction_emoji||'—')}</td>
+      <td><code style="font-size:10px">${esc(a.channel_id.slice(-8))}</code></td>
+      <td style="font-size:11px">${fmtDate(a.accepted_at)}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+// ══ Logs ════════════════════════════════════════════════════════
+async function loadMplusLogs(){
+  const level=document.getElementById('ml-filter-level')?.value||undefined;
+  const search=document.getElementById('ml-filter-search')?.value||undefined;
+  let url='/api/mplus/logs?limit=200';
+  if(level)url+=`&level=${encodeURIComponent(level)}`;
+  if(search)url+=`&search=${encodeURIComponent(search)}`;
+  const logs=await api('GET',url);
+  const box=document.getElementById('log-box');
+  if(!logs?.length){box.innerHTML='<div class="empty">No logs</div>';return;}
+  box.innerHTML=logs.map(l=>`<div class="le">
+    <span class="le-t">${new Date(l.created_at).toLocaleTimeString('en',{hour12:false})}</span>
+    <span class="le-b ${l.level}">${l.level.toUpperCase()}</span>
+    <span class="le-b" style="background:var(--surface2);color:var(--muted)">${esc(l.event_type)}</span>
+    <span class="le-m">${esc(l.message)}</span>
+  </div>`).join('');
+}
+async function clearMplusLogs(){
+  if(!confirm('Clear?'))return;
+  const r=await api('POST','/api/mplus/logs/clear');
+  if(r?.ok){toast('Cleared','warn');loadMplusLogs();}
+}
+
+// ══ Telegram ════════════════════════════════════════════════════
+async function loadTelegram(){
+  const r=await api('GET','/api/telegram/config');if(!r)return;
+  document.getElementById('tg-chat-id').value=r.chat_id||'';
+  document.getElementById('tg-acc').checked=!!r.alert_boost_accepted;
+  document.getElementById('tg-boost').checked=!!r.alert_new_boost;
+  document.getElementById('tg-ch').checked=!!r.alert_new_channel;
+  document.getElementById('tg-err').checked=!!r.alert_errors;
+  const st=document.getElementById('tg-token-status');
+  st.textContent=r.has_token?'✓ TELEGRAM_TOKEN set':'⚠ Not set — run: wrangler secret put TELEGRAM_TOKEN';
+  st.style.color=r.has_token?'var(--green)':'var(--yellow)';
+}
+document.getElementById('save-tg-btn').onclick=async()=>{
+  const r=await api('POST','/api/telegram/config',{chat_id:document.getElementById('tg-chat-id').value||null});
+  if(r?.ok)toast('Saved','success');else toast(r?.error||'Error','error');
+};
+document.getElementById('save-tg-toggles-btn').onclick=async()=>{
+  const r=await api('POST','/api/telegram/config',{
+    alert_boost_accepted:document.getElementById('tg-acc').checked,
+    alert_new_boost:document.getElementById('tg-boost').checked,
+    alert_new_channel:document.getElementById('tg-ch').checked,
+    alert_errors:document.getElementById('tg-err').checked,
+  });
+  if(r?.ok)toast('Saved','success');else toast(r?.error||'Error','error');
+};
+document.getElementById('test-tg-btn').onclick=async()=>{
+  const res=document.getElementById('tg-test-result');
+  res.textContent='Sending…';res.style.color='var(--muted)';
+  const r=await api('POST','/api/telegram/test');
+  if(!r){res.textContent='';return;}
+  res.textContent=r.ok?'✓ Sent!':'✗ '+(r.error||'failed');
+  res.style.color=r.ok?'var(--green)':'var(--red)';
+};
+
+// ══ Timing settings ═════════════════════════════════════════════
+async function loadTiming(){
+  const r=await api('GET','/api/monitor/config');if(!r)return;
+  document.getElementById('timing-discovery').value=r.discovery_interval_sec??5;
+  document.getElementById('timing-sign-delay').value=r.sign_delay_sec??3;
+  document.getElementById('timing-queue-delay').value=r.queue_delay_sec??2;
+}
+document.getElementById('save-timing-btn').onclick=async()=>{
+  const disc=parseInt(document.getElementById('timing-discovery').value);
+  const sign=parseInt(document.getElementById('timing-sign-delay').value);
+  const queue=parseInt(document.getElementById('timing-queue-delay').value);
+  const st=document.getElementById('timing-status');
+  if(isNaN(disc)||disc<1||disc>300){st.textContent='✗ Discovery must be 1–300';st.style.color='var(--red)';return;}
+  if(isNaN(sign)||sign<0||sign>60){st.textContent='✗ Sign delay must be 0–60';st.style.color='var(--red)';return;}
+  if(isNaN(queue)||queue<1||queue>60){st.textContent='✗ Queue delay must be 1–60';st.style.color='var(--red)';return;}
+  const r=await api('POST','/api/monitor/config',{
+    discovery_interval_sec:disc,
+    sign_delay_sec:sign,
+    queue_delay_sec:queue,
+  });
+  if(r?.ok){st.textContent='✓ Saved';st.style.color='var(--green)';}
+  else{st.textContent='✗ '+(r?.error||'Error');st.style.color='var(--red)';}
+};
+
+// ══ Health ══════════════════════════════════════════════════════
+async function loadHealth(){
+  const h=await api('GET','/api/health');
+  const el=document.getElementById('health-content');
+  if(!h){el.innerHTML='<div class="empty">Failed</div>';return;}
+  const row=(lbl,val,ok_)=>`<div style="display:flex;justify-content:space-between;padding:6px 0;
+    border-bottom:1px solid var(--border);font-size:13px">
+    <span style="color:var(--muted)">${lbl}</span>
+    <span style="color:${ok_?'var(--green)':'var(--red)'}">${esc(String(val))}</span></div>`;
+  el.innerHTML=
+    row('Overall',h.status,h.status==='ok')+
+    row('D1',h.d1,h.d1==='ok')+
+    row('Durable Object',h.durable_object,h.durable_object==='ok')+
+    row('State',h.monitoring_state,true)+
+    row('Monitoring Enabled',h.monitoring_enabled?'YES':'NO',true)+
+    row('Telegram Token',h.telegram_token_set?'Set':'Not set',h.telegram_token_set);
+  if(h.discord_api)renderRlStats(h.discord_api);
+}
+async function loadRlStatus(){
+  const h=await api('GET','/api/discord/status');
+  if(!h){const el=document.getElementById('rl-content');if(el)el.innerHTML='<div class="empty">Failed</div>';return;}
+  renderRlStats(h);
+}
+function renderRlStats(s){
+  const el=document.getElementById('rl-content');if(!el)return;
+  const sc={ok:'var(--green)',rate_limited:'var(--yellow)',degraded:'var(--red)'}[s.status]||'var(--muted)';
+  const row=(lbl,val,c)=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--muted)">${lbl}</span><span style="color:${c||'var(--text)'}">${esc(String(val??'—'))}</span></div>`;
+  el.innerHTML=
+    row('Status',s.status,sc)+
+    row('Total Requests',s.totalRequests,'var(--blue)')+
+    row('Cache Hits',s.totalCacheHits,'var(--green)')+
+    row('Total Retries',s.totalRetries,s.totalRetries>0?'var(--yellow)':'var(--muted)')+
+    row('Total 429s',s.total429s,s.total429s>0?'var(--red)':'var(--green)')+
+    row('Failed Requests',s.failedRequests,s.failedRequests>0?'var(--red)':'var(--green)')+
+    row('Last 429 At',s.lastRateLimitAt||'Never',s.lastRateLimitAt?'var(--yellow)':'var(--muted)')+
+    row('Last Retry-After ms',s.lastRetryAfterMs||0,null)+
+    row('Active Buckets',s.activeBuckets,null)+
+    row('Cache Size',s.cacheSize,null)+
+    row('In-Flight',s.inFlightCount,s.inFlightCount>0?'var(--yellow)':'var(--muted)')+
+    row('Last Success',s.lastSuccessAt||'Never','var(--muted)');
+}
+async function forceRelease(){
+  const r=await api('POST','/api/monitor/force-release');
+  if(r?.ok){toast('Released','success');loadDashboard();}
+}
+async function disableAll(){
+  if(!confirm('Disable monitoring?'))return;
+  await api('POST','/api/monitor/disable');
+  toast('Disabled','warn');loadDashboard();
+}
+
+// ══ Original Bot ════════════════════════════════════════════════
+async function loadOrigStatus(){
+  const r=await api('GET','/api/status');if(!r)return;
+  document.getElementById('orig-status').innerHTML=
+    `<b>Enabled:</b> ${r.enabled?'<span style="color:var(--green)">YES</span>':'NO'} &nbsp;
+     <b>Auto-Approve:</b> ${r.autoApprove?'ON':'OFF'} &nbsp; <b>Count:</b> ${r.messageCount??0}`;
+  const ap=document.getElementById('orig-approval');
+  if(r.awaitingApproval){
+    ap.innerHTML=`Waiting: <code>${esc(r.awaitingApproval.author_id)}</code>`;
+    ap.style.color='var(--yellow)';
+  } else {ap.textContent='None';ap.style.color='var(--muted)';}
+}
+async function origBotEnable(){const r=await api('POST','/api/bot/enable');if(r?.ok){toast('Enabled','success');loadOrigStatus();}}
+async function origBotDisable(){const r=await api('POST','/api/bot/disable');if(r?.ok){toast('Disabled','warn');loadOrigStatus();}}
+async function origApprove(){const r=await api('POST','/api/bot/approve');if(r?.ok){toast('Approved','success');loadOrigStatus();}else toast(r?.error||'Error','error');}
+async function origDeny(){const r=await api('POST','/api/bot/deny');if(r?.ok){toast('Denied','warn');loadOrigStatus();}else toast(r?.error||'Error','error');}
+async function loadOrigLogs(){
+  const r=await api('GET','/api/logs');
+  const box=document.getElementById('orig-log-box');
+  if(!r?.logs?.length){box.innerHTML='<div class="empty">No logs</div>';return;}
+  box.innerHTML=r.logs.map(l=>`<div class="le">
+    <span class="le-t">${new Date(l.timestamp).toLocaleTimeString('en',{hour12:false})}</span>
+    <span class="le-b ${l.level}">${l.level.toUpperCase()}</span>
+    <span class="le-m">${esc(l.message)}</span>
+  </div>`).join('');
+}
+async function clearOrigLogs(){
+  if(!confirm('Clear?'))return;
+  const r=await api('POST','/api/logs/clear');
+  if(r?.ok){toast('Cleared','warn');loadOrigLogs();}
+}
+
+// ══ Boot ════════════════════════════════════════════════════════
+(async()=>{
+  const r=await fetch('/api/auth/check');
+  const d=await r.json();
+  if(d.authenticated)showApp();else showLogin();
+})();
+</script>
+</body>
+</html>
